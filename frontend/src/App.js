@@ -29,6 +29,14 @@ function App() {
   var [loading, setLoading] = useState(false);
   var [error, setError] = useState(null);
   var [selectedPart, setSelectedPart] = useState(null);
+  var [history, setHistory] = useState([]);
+  var [showHistory, setShowHistory] = useState(false);
+
+  var loadHistory = function() {
+    fetch("http://127.0.0.1:8000/history")
+      .then(function(res) { return res.json(); })
+      .then(function(data) { setHistory(data); setShowHistory(true); });
+  };
 
   var handleDesign = function() {
     setLoading(true);
@@ -91,12 +99,46 @@ function App() {
         <button className={"nav-btn" + (page === "design" ? " active" : "")} onClick={function() { setPage("design"); }}>
           Design Device
         </button>
-        <button className={"nav-btn" + (page === "chat" ? " active" : "")} onClick={function() { setPage("chat"); }}>
+      <button className={"nav-btn" + (page === "chat" ? " active" : "")} onClick={function() { setPage("chat"); }}>
           Chat with AI
+        </button>
+        <button className={"nav-btn" + (showHistory ? " active" : "")} onClick={loadHistory}>
+          Build History
         </button>
         <div className="sidebar-footer">Built by you. Powered by AI.</div>
       </div>
-
+{showHistory && (
+        <div style={{ width: 280, background: "#0a0a14", borderRight: "1px solid #1e1e2e", overflowY: "auto", padding: 16 }}>
+          <div style={{ color: "#00e5ff", fontWeight: 700, marginBottom: 16, fontSize: 14 }}>Your Past Builds</div>
+          {history.length === 0 && <div style={{ color: "#444", fontSize: 13 }}>No builds yet</div>}
+          {history.map(function(d) {
+            return (
+              <div
+                key={d.id}
+                style={{ background: "#0f0f1a", border: "1px solid #1e1e2e", borderRadius: 10, padding: 12, marginBottom: 12, cursor: "pointer" }}
+                onClick={function() {
+                  setResult({
+                    device_name: d.device_name,
+                    description: d.description,
+                    components: d.components,
+                    total_estimated_cost: d.total_cost,
+                    within_budget: d.within_budget === "True",
+                    assembly_steps: d.assembly_steps,
+                    wiring_summary: d.wiring_summary,
+                  });
+                  setShowHistory(false);
+                  setPage("design");
+                }}
+              >
+                <div style={{ color: "#00e5ff", fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{d.device_name}</div>
+                <div style={{ color: "#888", fontSize: 12, marginBottom: 6 }}>{d.prompt}</div>
+                <div style={{ color: "#00ff88", fontSize: 12 }}>${d.total_cost} of ${d.budget}</div>
+                <div style={{ color: "#444", fontSize: 11, marginTop: 4 }}>{d.created_at.slice(0, 10)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className="main">
         <div className="topbar">
           <h2>{page === "design" ? "Device Designer" : "AI Assistant"}</h2>
