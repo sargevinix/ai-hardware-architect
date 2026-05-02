@@ -24,6 +24,7 @@ app.add_middleware(
 class DeviceRequest(BaseModel):
     prompt: str
     budget: float
+    category: str = "general"
 
 class ChatRequest(BaseModel):
     message: str
@@ -35,7 +36,7 @@ def root():
 
 @app.post("/design")
 def design(request: DeviceRequest):
-    result = design_device(request.prompt, request.budget)
+    result = design_device(request.prompt, request.budget, request.category)
     db = SessionLocal()
     record = Design(
         prompt=request.prompt,
@@ -157,3 +158,51 @@ def refine(request: RefineRequest):
     new_design["within_budget"] = new_design["total_estimated_cost"] <= request.current_design.get("budget", 9999)
     
     return new_design
+
+class FirmwareRequest(BaseModel):
+    design: dict
+
+@app.post("/firmware")
+def generate_firmware(request: FirmwareRequest):
+    components = request.design.get("components", [])
+    device_name = request.design.get("device_name", "MyDevice")
+    wiring = request.design.get("wiring_summary", "")
+    
+    comp_list = "\n".join([
+        f"- {c['name']}: {c['purpose']}" 
+        for c in components
+    ])
+    
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are an expert embedded systems engineer. "
+                "Generate complete, working Arduino code for the given hardware design. "
+                "Include: all #include statements, pin definitions as constants, "
+                "setup() function with proper initialization, loop() function with "
+                "working logic, and helper functions. "
+                "Add brief comments only where non-obvious. "
+                "Return ONLY the code, no explanation, no markdown backticks."
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Device: {device_name}\n"
+                f"Components:\n{comp_list}\n"
+                f"Wiring: {wiring}\n\n"
+                "Generate complete Arduino firmware for this device."
+            )
+        }
+    ]
+    
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        temperature=0.2,
+        max_tokens=2000,
+    )
+    
+    code = response.choices[0].message.content
+    return {"code": code, "filename": device_name.replace(" ", "_") + ".ino"}

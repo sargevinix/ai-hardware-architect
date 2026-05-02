@@ -12,8 +12,12 @@ SYSTEM_PROMPT = (
     "Only respond with valid JSON. No extra text."
 )
 
-def design_device(user_prompt: str, budget: float) -> dict:
-    message = f"Device idea: {user_prompt}\nBudget: ${budget}"
+def design_device(user_prompt: str, budget: float, category: str = "general") -> dict:
+    message = (
+        f"Device idea: {user_prompt}\n"
+        f"Budget: ${budget}\n"
+        f"Category: {category}"
+    )
 
     response = client.chat.completions.create(
       model="llama-3.3-70b-versatile",

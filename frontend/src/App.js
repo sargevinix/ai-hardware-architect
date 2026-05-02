@@ -2,6 +2,9 @@ import { useState } from "react";
 import { jsPDF } from "jspdf";
 import "./App.css";
 import Chat from "./Chat";
+import Firmware from "./Firmware";
+import CostChart from "./CostChart";
+import CategorySelector, { CATEGORIES } from "./CategorySelector";
 import Viewer3D from "./Viewer3D";
 
 var COLORS = ["#00e5ff","#00ff88","#ff6b6b","#ffd93d","#a78bfa","#ff9a3c","#ff6eb4","#7eb8ff"];
@@ -79,6 +82,7 @@ function App() {
   var [exploded, setExploded] = useState(false);
   var [history, setHistory] = useState([]);
   var [showHistory, setShowHistory] = useState(false);
+  var [category, setCategory] = useState("general");
 
   var loadHistory = function() {
     fetch("http://127.0.0.1:8000/history")
@@ -95,7 +99,11 @@ function App() {
     fetch("http://127.0.0.1:8000/design", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: prompt, budget: parseFloat(budget) }),
+     body: JSON.stringify({ 
+        prompt: prompt, 
+        budget: parseFloat(budget),
+        category: category,
+      }),
     })
       .then(function(res) { return res.json(); })
       .then(function(data) { setResult(data); setLoading(false); })
@@ -251,6 +259,10 @@ function App() {
 
               <div className="card card-input">
                 <div className="card-body">
+                      <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>Category</div>
+                  <CategorySelector selected={category} onSelect={setCategory} />
+                </div>
                   <div className="prompt-wrapper">
                     <input
                       className="prompt-input"
@@ -270,6 +282,8 @@ function App() {
                   </div>
                   {error && <p className="error-msg">{error}</p>}
                 </div>
+                {result && <CostChart components={result.components} totalCost={result.total_estimated_cost} budget={budget} />}
+              {result && <Firmware result={result} />}
               </div>
 
               {result && (
