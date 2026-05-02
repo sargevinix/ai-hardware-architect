@@ -177,18 +177,14 @@ function drawShape(ctx, type, x, y, size, color, selected, hovered) {
   ctx.restore();
 }
 
-function calcFeasibility(components) {
-  var totalCost = components.reduce(function(s, c) { return s + c.estimated_price_usd; }, 0);
-  var power = components.length * 80 + Math.random() * 50;
-  var weight = components.length * 12 + Math.random() * 20;
-  var complexity = Math.min(100, components.length * 14);
-  var feasibility = Math.max(40, 100 - components.length * 3 - (totalCost > 300 ? 10 : 0));
-  return {
-    power: Math.round(power),
-    weight: Math.round(weight),
-    complexity: Math.round(complexity),
-    feasibility: Math.round(feasibility),
-  };
+function calcFeasibility(components, selectedIndex) {
+  var c = selectedIndex !== null && components[selectedIndex] ? components[selectedIndex] : null;
+  var price = c ? c.estimated_price_usd : 0;
+  var totalCost = components.reduce(function(s, x) { return s + x.estimated_price_usd; }, 0);
+  var power = c ? Math.round(40 + price * 1.8 + components.length * 12) : Math.round(components.length * 80);
+  var weight = c ? Math.round(8 + price * 0.4 + components.length * 3) : Math.round(components.length * 12);
+  var feasibility = Math.max(38, Math.round(100 - components.length * 2.5 - (totalCost > 400 ? 12 : 0)));
+  return { power, weight, feasibility };
 }
 
 function Viewer3D({ components, selectedIndex, onSelect, exploded }) {
@@ -196,7 +192,7 @@ function Viewer3D({ components, selectedIndex, onSelect, exploded }) {
   var angleRef = useRef(0);
   var animRef = useRef(null);
   var [hovered, setHovered] = useState(null);
-  var stats = components && components.length > 0 ? calcFeasibility(components) : null;
+ var stats = components && components.length > 0 ? calcFeasibility(components, selectedIndex) : null;
 
   useEffect(function() {
     if (!components || components.length === 0) return;
@@ -302,15 +298,16 @@ function Viewer3D({ components, selectedIndex, onSelect, exploded }) {
 
   var selected = components && selectedIndex !== null ? components[selectedIndex] : null;
 
-  function StatBar({ label, value, max, color }) {
+function StatBar({ label, value, max, unit }) {
+    var pct = Math.min(100, Math.round((value / max) * 100));
     return (
-      <div style={{ marginBottom: 10 }}>
-        <div className="feasibility-row">
-          <span className="feasibility-label">{label}</span>
-          <span className="feasibility-value" style={{ color }}>{value}</span>
+      <div className="telemetry-row">
+        <div className="telemetry-header">
+          <span className="telemetry-label">{label}</span>
+          <span className="telemetry-value" style={{ color: "#a5b4fc" }}>{value}{unit}</span>
         </div>
-        <div className="feasibility-bar-bg" style={{ marginTop: 4 }}>
-          <div className="feasibility-bar-fill" style={{ width: Math.min(100, (value/max)*100) + "%", background: color }} />
+        <div className="telemetry-track">
+          <div className="telemetry-fill" style={{ width: pct + "%" }} />
         </div>
       </div>
     );
@@ -350,12 +347,11 @@ function Viewer3D({ components, selectedIndex, onSelect, exploded }) {
         )}
       </div>
 
-      {stats && (
-        <div className="feasibility-panel">
-          <StatBar label="Power draw" value={stats.power + "mW"} max={500} color="#ffd93d" />
-          <StatBar label="Est. weight" value={stats.weight + "g"} max={200} color="#ff9a3c" />
-          <StatBar label="Complexity" value={stats.complexity + "%"} max={100} color="#c77dff" />
-          <StatBar label="Feasibility" value={stats.feasibility + "%"} max={100} color="#00ff88" />
+   {stats && (
+        <div className="telemetry">
+          <StatBar label="Power Efficiency" value={stats.power} max={800} unit="mW" />
+          <StatBar label="Weight Impact" value={stats.weight} max={300} unit="g" />
+          <StatBar label="Design Feasibility" value={stats.feasibility} max={100} unit="%" />
         </div>
       )}
     </div>

@@ -108,3 +108,52 @@ def chat(request: ChatRequest):
         temperature=0.5,
     )
     return {"reply": response.choices[0].message.content}
+
+class RefineRequest(BaseModel):
+    component_index: int
+    instruction: str
+    current_design: dict
+
+@app.post("/refine")
+def refine(request: RefineRequest):
+    component = request.current_design["components"][request.component_index]
+    
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are an AI hardware architect. The user wants to refine a specific component in their device. "
+                "Respond ONLY with a JSON object for the updated component with these exact fields: "
+                "name, purpose, estimated_price_usd, search_query. No extra text."
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Current device: {request.current_design['device_name']}\n"
+                f"Component to change: {component['name']} - {component['purpose']} (${component['estimated_price_usd']})\n"
+                f"User instruction: {request.instruction}\n"
+                f"Budget remaining: ${request.current_design.get('total_estimated_cost', 0)}\n"
+                "Return updated component JSON only."
+            )
+        }
+    ]
+    
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        temperature=0.3,
+    )
+    
+    raw = response.choices[0].message.content
+    start = raw.find("{")
+    end = raw.rfind("}") + 1
+    updated = json.loads(raw[start:end])
+    
+    new_design = dict(request.current_design)
+    new_design["components"] = list(request.current_design["components"])
+    new_design["components"][request.component_index] = updated
+    new_design["total_estimated_cost"] = sum(c["estimated_price_usd"] for c in new_design["components"])
+    new_design["within_budget"] = new_design["total_estimated_cost"] <= request.current_design.get("budget", 9999)
+    
+    return new_design
