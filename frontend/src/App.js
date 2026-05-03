@@ -4,6 +4,7 @@ import "./App.css";
 import Chat from "./Chat";
 import Firmware from "./Firmware";
 import CostChart from "./CostChart";
+import WiringDiagram from "./WiringDiagram";
 import CategorySelector, { CATEGORIES } from "./CategorySelector";
 import Viewer3D from "./Viewer3D";
 
@@ -283,6 +284,7 @@ function App() {
                   {error && <p className="error-msg">{error}</p>}
                 </div>
                 {result && <CostChart components={result.components} totalCost={result.total_estimated_cost} budget={budget} />}
+                {result && <WiringDiagram components={result.components} />}
               {result && <Firmware result={result} />}
               </div>
 
