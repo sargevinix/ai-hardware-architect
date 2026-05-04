@@ -1,5 +1,8 @@
 import { useState } from "react";
 
+const API = process.env.REACT_APP_API_URL || "https://ai-hardware-architect.onrender.com";
+const T = { serif: "'Noto Serif', serif", sans: "'Manrope', sans-serif", mono: "'JetBrains Mono', monospace", border: "#E5E2DA", primary: "#1D1D1B", secondary: "#99462a", muted: "#777771", surface: "#f5f3ee", white: "#ffffff" };
+
 function Firmware({ result }) {
   var [code, setCode] = useState(null);
   var [loading, setLoading] = useState(false);
@@ -7,165 +10,83 @@ function Firmware({ result }) {
   var [filename, setFilename] = useState("");
 
   var generate = function() {
-    setLoading(true);
-    setCode(null);
-    fetch("http://127.0.0.1:8000/firmware", {
+    setLoading(true); setCode(null);
+    fetch(`${API}/firmware`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ design: result }),
-    })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        setCode(data.code);
-        setFilename(data.filename);
-        setLoading(false);
-      })
-      .catch(function() { setLoading(false); });
+    }).then(r => r.json()).then(data => { setCode(data.code); setFilename(data.filename); setLoading(false); }).catch(() => setLoading(false));
   };
 
   var download = function() {
     var blob = new Blob([code], { type: "text/plain" });
     var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
+    var a = document.createElement("a"); a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   };
 
   var copy = function() {
     navigator.clipboard.writeText(code);
     setCopied(true);
-    setTimeout(function() { setCopied(false); }, 2000);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (!result) return null;
 
   return (
-    <div className="card" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-      <div className="card-header">
-        <span className="card-title">Firmware Generator</span>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {code && (
-            <>
-              <button onClick={copy} style={styles.actionBtn}>
-                {copied ? "Copied!" : "Copy Code"}
-              </button>
-              <button onClick={download} style={styles.downloadBtn}>
-                Download .ino
-              </button>
-            </>
-          )}
-          <button onClick={generate} disabled={loading} style={loading ? styles.genBtnDisabled : styles.genBtn}>
-            {loading ? (
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="spinner" />
-                Generating...
-              </span>
-            ) : code ? "Regenerate" : "Generate Firmware"}
+    <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ padding: "16px 24px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 600, color: T.primary }}>Firmware Generator</span>
+        <div style={{ display: "flex", gap: 8 }}>
+          {code && <>
+            <button onClick={copy} style={btn2}>{copied ? "Copied!" : "Copy"}</button>
+            <button onClick={download} style={btn2}>Download .ino</button>
+          </>}
+          <button onClick={generate} disabled={loading} style={{ ...btn1, opacity: loading ? 0.6 : 1 }}>
+            {loading ? "Generating..." : code ? "Regenerate" : "⚡ Generate Firmware"}
           </button>
         </div>
       </div>
 
+      {/* Empty state */}
       {!code && !loading && (
-        <div className="card-body">
-          <div style={styles.empty}>
-            <div style={styles.emptyIcon}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <polyline points="16 18 22 12 16 6"/>
-                <polyline points="8 6 2 12 8 18"/>
-              </svg>
-            </div>
-            <div style={styles.emptyTitle}>Arduino Firmware</div>
-            <div style={styles.emptyDesc}>
-              Generate complete Arduino code with pin definitions,
-              initialization, and working logic for all {result.components.length} components.
-            </div>
+        <div style={{ padding: "48px 24px", textAlign: "center" }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 40, color: "#ccc" }}>developer_board</span>
+          <div style={{ fontFamily: T.sans, fontSize: 14, fontWeight: 600, color: T.muted, marginTop: 12 }}>Arduino Firmware</div>
+          <div style={{ fontFamily: T.sans, fontSize: 13, color: "#aaa", marginTop: 6 }}>
+            Generate complete Arduino code with pin definitions and working logic for all {result.components?.length} components.
           </div>
         </div>
       )}
 
+      {/* Loading */}
       {loading && (
-        <div className="card-body">
-          <div style={styles.empty}>
-            <span className="spinner" />
-            <div style={{ color: "var(--text-3)", fontSize: 13, marginTop: 12 }}>
-              Writing firmware for {result.device_name}...
-            </div>
-          </div>
+        <div style={{ padding: "48px 24px", textAlign: "center", fontFamily: T.sans, fontSize: 13, color: T.muted }}>
+          Writing firmware for {result.device_name}...
         </div>
       )}
 
+      {/* Code */}
       {code && (
-        <div style={styles.codeWrap}>
-          <div style={styles.codeBar}>
-            <span style={styles.codeLang}>Arduino / C++</span>
-            <span style={styles.codeFile}>{filename}</span>
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", background: "#1a1a1a", borderBottom: "1px solid #333" }}>
+            <span style={{ fontFamily: T.mono, fontSize: 12, color: T.secondary }}>{filename}</span>
+            <span style={{ fontFamily: T.sans, fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: 1, border: "1px solid #333", padding: "2px 8px", borderRadius: 3 }}>ARDUINO / C++</span>
           </div>
-          <pre style={styles.code}>{code}</pre>
-        </div>
+          <div style={{ display: "flex", background: "#111" }}>
+            <div style={{ padding: "20px 16px", color: "#444", fontFamily: T.mono, fontSize: 13, lineHeight: 1.7, textAlign: "right", userSelect: "none", borderRight: "1px solid #222", minWidth: 48 }}>
+              {code.split("\n").map((_, i) => <div key={i}>{i + 1}</div>)}
+            </div>
+            <pre style={{ flex: 1, padding: 20, color: "#d4f99d", fontFamily: T.mono, fontSize: 13, lineHeight: 1.7, overflowX: "auto", maxHeight: 480, overflowY: "auto", margin: 0, whiteSpace: "pre" }}>{code}</pre>
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-var styles = {
-  genBtn: {
-    padding: "6px 14px", borderRadius: 8, border: "none",
-    background: "linear-gradient(135deg, #00e5ff, #00ff88)",
-    color: "#000", fontSize: 11, fontWeight: 700,
-    cursor: "pointer", fontFamily: "Inter, sans-serif",
-    letterSpacing: "0.3px",
-  },
-  genBtnDisabled: {
-    padding: "6px 14px", borderRadius: 8, border: "none",
-    background: "var(--bg-3)", color: "var(--text-3)",
-    fontSize: 11, fontWeight: 700, cursor: "not-allowed",
-    fontFamily: "Inter, sans-serif",
-  },
-  actionBtn: {
-    padding: "6px 12px", borderRadius: 8,
-    border: "1px solid var(--border)",
-    background: "transparent", color: "var(--text-2)",
-    fontSize: 11, fontWeight: 600, cursor: "pointer",
-    fontFamily: "Inter, sans-serif",
-  },
-  downloadBtn: {
-    padding: "6px 12px", borderRadius: 8,
-    border: "1px solid rgba(0,255,136,0.3)",
-    background: "rgba(0,255,136,0.08)", color: "#00ff88",
-    fontSize: 11, fontWeight: 600, cursor: "pointer",
-    fontFamily: "Inter, sans-serif",
-  },
-  empty: {
-    display: "flex", flexDirection: "column",
-    alignItems: "center", justifyContent: "center",
-    padding: "32px 20px", textAlign: "center",
-  },
-  emptyIcon: {
-    width: 48, height: 48, borderRadius: 12,
-    background: "var(--bg-2)", border: "1px solid var(--border)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    color: "var(--text-3)", marginBottom: 12,
-  },
-  emptyTitle: { fontSize: 14, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 },
-  emptyDesc: { fontSize: 12, color: "var(--text-3)", maxWidth: 360, lineHeight: 1.6 },
-  codeWrap: { borderTop: "1px solid var(--border)" },
-  codeBar: {
-    display: "flex", justifyContent: "space-between",
-    alignItems: "center", padding: "8px 16px",
-    background: "var(--bg-0)", borderBottom: "1px solid var(--border)",
-  },
-  codeLang: { fontSize: 10, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.8px" },
-  codeFile: { fontSize: 11, color: "#6366f1", fontFamily: "monospace" },
-  code: {
-    padding: "16px", margin: 0,
-    background: "var(--bg-0)", color: "#a5b4fc",
-    fontSize: 12, lineHeight: 1.7,
-    fontFamily: "'SF Mono', 'Fira Code', monospace",
-    overflowX: "auto", maxHeight: 480,
-    overflowY: "auto", whiteSpace: "pre",
-  },
-};
+const btn1 = { background: "#1D1D1B", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontFamily: "'Manrope', sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" };
+const btn2 = { background: "transparent", color: "#1D1D1B", border: "1px solid #E5E2DA", borderRadius: 8, padding: "8px 14px", fontFamily: "'Manrope', sans-serif", fontSize: 13, fontWeight: 500, cursor: "pointer" };
 
 export default Firmware;
